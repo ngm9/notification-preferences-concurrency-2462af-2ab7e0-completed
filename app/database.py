@@ -1,21 +1,27 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from contextlib import contextmanager
-from app.config import settings
+import os
+from collections.abc import Generator
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+
+DATABASE_URL = os.environ["DATABASE_URL"]
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+)
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    expire_on_commit=False,
+)
 
 
-def get_connection():
-    return psycopg2.connect(settings.database_url, cursor_factory=RealDictCursor)
+class Base(DeclarativeBase):
+    pass
 
 
-@contextmanager
-def get_db():
-    conn = get_connection()
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+def get_db() -> Generator[Session, None, None]:
+    with SessionLocal() as db:
+        yield db
